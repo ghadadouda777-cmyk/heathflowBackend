@@ -31,6 +31,7 @@ public class PlanExerciceService {
 
     public List<PlanExerciceDto> getPlansByUserId(String userId) {
         return coachPlanAssignmentRepository.findByClientId(userId).stream()
+                .filter(assignment -> assignment.getPlanExerciceId() != null)  // Only include assignments with a plan
                 .map(assignment -> planExerciceRepository.findById(assignment.getPlanExerciceId()))
                 .filter(java.util.Optional::isPresent)
                 .map(opt -> toDto(opt.get()))

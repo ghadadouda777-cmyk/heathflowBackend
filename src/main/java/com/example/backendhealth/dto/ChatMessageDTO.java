@@ -1,5 +1,6 @@
 package com.example.backendhealth.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import java.time.LocalDateTime;
 
@@ -14,5 +15,7 @@ public class ChatMessageDTO {
     private String receiverId;
     private String content;
     private LocalDateTime sentAt;
+
+    @JsonProperty("isRead")
     private boolean isRead;
 }

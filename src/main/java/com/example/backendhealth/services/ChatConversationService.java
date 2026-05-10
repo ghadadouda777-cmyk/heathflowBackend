@@ -7,6 +7,7 @@ import com.example.backendhealth.entities.ChatMessage;
 import com.example.backendhealth.repositories.ChatConversationRepository;
 import com.example.backendhealth.repositories.ChatMessageRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,9 @@ public class ChatConversationService {
 
     private final ChatConversationRepository convRepo;
     private final ChatMessageRepository msgRepo;
+
+    @Autowired(required = false)
+    private NotificationService notificationService;
 
     /** Find existing conversation or create a new one */
     public ChatConversationDTO getOrCreate(String p1, String p2, String type) {
@@ -64,7 +68,7 @@ public class ChatConversationService {
         msgRepo.markAsRead(conversationId, userId);
     }
 
-    /** Save a message and update conversation's lastMessage */
+    /** Save a message, update conversation preview, and notify the receiver */
     public ChatMessageDTO saveMessage(ChatMessageDTO dto) {
         ChatMessage msg = ChatMessage.builder()
                 .conversationId(dto.getConversationId())
@@ -82,7 +86,25 @@ public class ChatConversationService {
             convRepo.save(conv);
         });
 
-        return toMsgDTO(saved);
+        ChatMessageDTO result = toMsgDTO(saved);
+
+        // Notify the receiver — works for both HTTP and WebSocket paths
+        if (notificationService != null && result.getReceiverId() != null) {
+            try {
+                String preview = result.getContent().length() > 50
+                        ? result.getContent().substring(0, 50) + "…"
+                        : result.getContent();
+                notificationService.send(
+                        result.getReceiverId(),
+                        "NEW_MESSAGE",
+                        "Nouveau message",
+                        preview,
+                        String.valueOf(result.getConversationId())
+                );
+            } catch (Exception e) { /* non-fatal */ }
+        }
+
+        return result;
     }
 
     private ChatConversationDTO toDTO(ChatConversation c, String currentUserId) {

@@ -82,7 +82,7 @@ public class CoachDashboardService {
         Map<String, List<CoachPlanAssignment>> byClient = assignments.stream()
                 .collect(Collectors.groupingBy(CoachPlanAssignment::getClientId));
 
-        // Only return clients who have at least one assignment with this coach
+        // Return all clients who have at least one assignment with this coach (even without a plan)
         return byClient.entrySet().stream()
                 .map(entry -> {
                     String clientId = entry.getKey();
@@ -91,7 +91,9 @@ public class CoachDashboardService {
                     user client = userRepository.findById(clientId).orElse(null);
                     if (client == null) return null;
 
+                    // Only include assignments that have a plan (planExerciceId != null)
                     List<String> plans = clientAssignments.stream()
+                            .filter(a -> a.getPlanExerciceId() != null)
                             .map(a -> planById.get(String.valueOf(a.getPlanExerciceId())))
                             .filter(Objects::nonNull)
                             .map(PlanExercice::getNom)
@@ -123,9 +125,36 @@ public class CoachDashboardService {
         getUserById(dto.getCoachId());
         getUserById(dto.getClientId());
 
-        assignmentRepository.findByCoachIdAndClientIdAndPlanExerciceId(dto.getCoachId(), dto.getClientId(), dto.getPlanExerciceId())
-                .ifPresent(a -> { throw new RuntimeException("Ce plan est déjà affecté à ce client"); });
+        // Check if assignment already exists (with or without plan)
+        List<CoachPlanAssignment> existing = assignmentRepository.findByCoachIdAndClientId(dto.getCoachId(), dto.getClientId());
+        
+        if (!existing.isEmpty()) {
+            // Update existing assignment with the plan
+            CoachPlanAssignment assignment = existing.get(0);
+            
+            // Check if this specific plan is already assigned
+            if (assignment.getPlanExerciceId() != null && assignment.getPlanExerciceId().equals(dto.getPlanExerciceId())) {
+                throw new RuntimeException("Ce plan est déjà affecté à ce client");
+            }
+            
+            // If no plan was assigned yet, assign this one
+            if (assignment.getPlanExerciceId() == null) {
+                assignment.setPlanExerciceId(dto.getPlanExerciceId());
+                assignment.setProgressStatus(dto.getProgressStatus() == null ? "On Track" : dto.getProgressStatus());
+                return toAssignmentDTO(assignmentRepository.save(assignment));
+            }
+            
+            // If a plan was already assigned, create a new assignment for this plan
+            CoachPlanAssignment newAssignment = CoachPlanAssignment.builder()
+                    .coachId(dto.getCoachId())
+                    .clientId(dto.getClientId())
+                    .planExerciceId(dto.getPlanExerciceId())
+                    .progressStatus(dto.getProgressStatus() == null ? "On Track" : dto.getProgressStatus())
+                    .build();
+            return toAssignmentDTO(assignmentRepository.save(newAssignment));
+        }
 
+        // No existing assignment, create new one
         CoachPlanAssignment saved = assignmentRepository.save(
                 CoachPlanAssignment.builder()
                         .coachId(dto.getCoachId())

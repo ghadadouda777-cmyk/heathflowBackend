@@ -25,12 +25,12 @@ public class CoachPlanAssignment {
     @Column(nullable = false)
     private String clientId;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private Long planExerciceId;
 
     @Column(nullable = false)
     @Builder.Default
-    private String progressStatus = "On Track";
+    private String progressStatus = "Not Assigned";
 
     @CreationTimestamp
     private LocalDateTime createdAt;

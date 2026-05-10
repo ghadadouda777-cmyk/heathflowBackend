@@ -6,6 +6,7 @@ import com.example.backendhealth.services.ChatConversationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +19,7 @@ import java.util.Map;
 public class ChatConversationController {
 
     private final ChatConversationService chatService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /** GET /api/chat/nutritionist/{userId} — conversations of type PATIENT_NUTRITIONIST */
     @GetMapping("/nutritionist/{userId}")
@@ -35,6 +37,14 @@ public class ChatConversationController {
     @GetMapping("/patient/{userId}")
     public ResponseEntity<List<ChatConversationDTO>> getByPatient(@PathVariable String userId) {
         return ResponseEntity.ok(chatService.getByParticipant(userId));
+    }
+
+    /** GET /api/chat/patient/{userId}/type/{type} — conversations filtered by type */
+    @GetMapping("/patient/{userId}/type/{type}")
+    public ResponseEntity<List<ChatConversationDTO>> getByPatientAndType(
+            @PathVariable String userId,
+            @PathVariable String type) {
+        return ResponseEntity.ok(chatService.getByParticipantAndType(userId, type));
     }
 
     /** GET /api/chat/{conversationId}/messages — message history */
@@ -65,9 +75,25 @@ public class ChatConversationController {
         return ResponseEntity.noContent().build();
     }
 
-    /** POST /api/chat/message — save a message (HTTP fallback when WebSocket unavailable) */
+    /**
+     * POST /api/chat/message — save a message AND push to receiver via WebSocket.
+     * Used by the frontend as the primary send path (HTTP saves + WS delivers).
+     */
     @PostMapping("/message")
     public ResponseEntity<ChatMessageDTO> saveMessage(@RequestBody ChatMessageDTO dto) {
-        return ResponseEntity.ok(chatService.saveMessage(dto));
+        ChatMessageDTO saved = chatService.saveMessage(dto);
+
+        // Push real-time to the receiver's personal queue
+        if (saved.getReceiverId() != null) {
+            try {
+                messagingTemplate.convertAndSendToUser(
+                    saved.getReceiverId(),
+                    "/queue/messages",
+                    saved
+                );
+            } catch (Exception e) { /* non-fatal — receiver will get it via polling */ }
+        }
+
+        return ResponseEntity.ok(saved);
     }
 }

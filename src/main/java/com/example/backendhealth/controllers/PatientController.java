@@ -1,14 +1,19 @@
 package com.example.backendhealth.controllers;
 
+import com.example.backendhealth.dto.NotificationDTO;
 import com.example.backendhealth.entities.Bloomer;
 import com.example.backendhealth.entities.user;
 import com.example.backendhealth.repositories.BloomerRepository;
 import com.example.backendhealth.repositories.UserRepository;
+import com.example.backendhealth.services.NotificationService;
+import com.example.backendhealth.services.PlanExerciceService;
+import com.example.backendhealth.dto.PlanExerciceDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -20,6 +25,8 @@ public class PatientController {
 
     private final BloomerRepository bloomerRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
+    private final PlanExerciceService planExerciceService;
 
     /**
      * GET /api/patients/{id}
@@ -94,5 +101,32 @@ public class PatientController {
         bloomerRepository.save(b);
 
         return ResponseEntity.ok(Map.of("message", "Profil mis à jour avec succès"));
+    }
+
+    /**
+     * GET /api/patients/{id}/notifications
+     * Returns all notifications for a patient (for the bell icon)
+     */
+    @GetMapping("/{id}/notifications")
+    public ResponseEntity<List<NotificationDTO>> getNotifications(@PathVariable String id) {
+        return ResponseEntity.ok(notificationService.getAll(id));
+    }
+
+    /**
+     * GET /api/patients/{id}/notifications/unread-count
+     * Returns the count of unread notifications for the bell badge
+     */
+    @GetMapping("/{id}/notifications/unread-count")
+    public ResponseEntity<Map<String, Long>> getUnreadNotificationCount(@PathVariable String id) {
+        return ResponseEntity.ok(Map.of("count", notificationService.getUnreadCount(id)));
+    }
+
+    /**
+     * GET /api/patients/{id}/assigned-exercises
+     * Returns all exercise plans assigned to the patient
+     */
+    @GetMapping("/{id}/assigned-exercises")
+    public ResponseEntity<List<PlanExerciceDto>> getAssignedExercises(@PathVariable String id) {
+        return ResponseEntity.ok(planExerciceService.getPlansByUserId(id));
     }
 }

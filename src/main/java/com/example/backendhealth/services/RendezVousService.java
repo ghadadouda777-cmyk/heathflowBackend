@@ -2,15 +2,20 @@ package com.example.backendhealth.services;
 
 import com.example.backendhealth.dto.RendezVousDTO;
 import com.example.backendhealth.entities.Coach;
+import com.example.backendhealth.entities.CoachPlanAssignment;
 import com.example.backendhealth.entities.Nutritionist;
+import com.example.backendhealth.entities.PlanExercice;
 import com.example.backendhealth.entities.RendezVous;
 import com.example.backendhealth.entities.RendezVous.StatutRendezVous;
 import com.example.backendhealth.entities.user;
+import com.example.backendhealth.repositories.CoachPlanAssignmentRepository;
 import com.example.backendhealth.repositories.CoachRepository;
 import com.example.backendhealth.repositories.NutritionistRepository;
+import com.example.backendhealth.repositories.PlanExerciceRepository;
 import com.example.backendhealth.repositories.RendezVousRepository;
 import com.example.backendhealth.repositories.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -26,20 +31,30 @@ public class RendezVousService {
     private final NutritionistRepository nutriRepo;
     private final CoachRepository coachRepo;
     private final UserRepository userRepo;
+    private final CoachPlanAssignmentRepository assignmentRepo;
+    private final PlanExerciceRepository planRepo;
 
     // ✅ Cache pour éviter N+1 queries
     private final Map<String, Nutritionist> nutriCache = new HashMap<>();
     private final Map<String, Coach>        coachCache = new HashMap<>();
     private final Map<String, user>         userCache  = new HashMap<>();
 
+    // Optional — injected after construction to avoid circular dependency
+    @Autowired(required = false)
+    private NotificationService notificationService;
+
     public RendezVousService(RendezVousRepository rdvRepo,
                              NutritionistRepository nutriRepo,
                              CoachRepository coachRepo,
-                             UserRepository userRepo) {
+                             UserRepository userRepo,
+                             CoachPlanAssignmentRepository assignmentRepo,
+                             PlanExerciceRepository planRepo) {
         this.rdvRepo   = rdvRepo;
         this.nutriRepo = nutriRepo;
         this.coachRepo = coachRepo;
         this.userRepo  = userRepo;
+        this.assignmentRepo = assignmentRepo;
+        this.planRepo = planRepo;
     }
 
     public List<Nutritionist> rechercherNutritionnisteParNom(String nom) {
@@ -96,19 +111,100 @@ public class RendezVousService {
     public RendezVousDTO createRendezVous(RendezVousDTO dto) {
         RendezVous rdv = toEntity(dto);
         rdv.setStatut(StatutRendezVous.EN_ATTENTE);
-        return toDTO(rdvRepo.save(rdv));
+        RendezVousDTO saved = toDTO(rdvRepo.save(rdv));
+
+        // Notify the professional (coach or nutritionist)
+        if (notificationService != null) {
+            try {
+                String patientName = saved.getPatientNom() != null ? saved.getPatientNom() : "Un patient";
+                if (saved.getCoachId() != null) {
+                    notificationService.send(
+                        saved.getCoachId(), "RDV_NEW",
+                        "Nouvelle demande de RDV",
+                        patientName + " a demandé un rendez-vous.",
+                        String.valueOf(saved.getId())
+                    );
+                } else if (saved.getNutritionnisteId() != null) {
+                    notificationService.send(
+                        saved.getNutritionnisteId(), "RDV_NEW",
+                        "Nouvelle demande de RDV",
+                        patientName + " a demandé un rendez-vous.",
+                        String.valueOf(saved.getId())
+                    );
+                }
+            } catch (Exception e) { /* non-fatal */ }
+        }
+        return saved;
     }
 
     public RendezVousDTO accepterRendezVous(Long id) {
-        return updateStatut(id, StatutRendezVous.CONFIRME);
+        RendezVousDTO result = updateStatut(id, StatutRendezVous.CONFIRME);
+        
+        // ✅ Automatically create a CoachPlanAssignment (without plan) so client appears in coach's list
+        if (result.getCoachId() != null && result.getUserId() != null) {
+            try {
+                // Check if assignment already exists
+                List<CoachPlanAssignment> existing = assignmentRepo.findByCoachIdAndClientId(
+                        result.getCoachId(), 
+                        result.getUserId()
+                );
+                
+                if (existing.isEmpty()) {
+                    // Create assignment without plan (planExerciceId = null)
+                    CoachPlanAssignment assignment = CoachPlanAssignment.builder()
+                            .coachId(result.getCoachId())
+                            .clientId(result.getUserId())
+                            .planExerciceId(null)  // No plan yet
+                            .progressStatus("Not Assigned")
+                            .build();
+                    assignmentRepo.save(assignment);
+                }
+            } catch (Exception e) {
+                // Non-fatal: assignment creation failure doesn't block RDV acceptance
+            }
+        }
+        
+        if (notificationService != null && result.getUserId() != null) {
+            try {
+                notificationService.send(
+                    result.getUserId(), "RDV_CONFIRMED",
+                    "Rendez-vous confirmé",
+                    "Votre rendez-vous a été confirmé.",
+                    String.valueOf(result.getId())
+                );
+            } catch (Exception e) { /* non-fatal */ }
+        }
+        return result;
     }
 
     public RendezVousDTO refuserRendezVous(Long id) {
-        return updateStatut(id, StatutRendezVous.REFUSE);
+        RendezVousDTO result = updateStatut(id, StatutRendezVous.REFUSE);
+        if (notificationService != null && result.getUserId() != null) {
+            try {
+                notificationService.send(
+                    result.getUserId(), "RDV_REFUSED",
+                    "Rendez-vous refusé",
+                    "Votre rendez-vous a été refusé.",
+                    String.valueOf(result.getId())
+                );
+            } catch (Exception e) { /* non-fatal */ }
+        }
+        return result;
     }
 
     public RendezVousDTO terminerRendezVous(Long id) {
-        return updateStatut(id, StatutRendezVous.TERMINE);
+        RendezVousDTO result = updateStatut(id, StatutRendezVous.TERMINE);
+        if (notificationService != null && result.getUserId() != null) {
+            try {
+                notificationService.send(
+                    result.getUserId(), "RDV_TERMINATED",
+                    "Rendez-vous terminé",
+                    "Votre rendez-vous est terminé.",
+                    String.valueOf(result.getId())
+                );
+            } catch (Exception e) { /* non-fatal */ }
+        }
+        return result;
     }
 
     public RendezVousDTO updateStatut(Long id, StatutRendezVous statut) {
