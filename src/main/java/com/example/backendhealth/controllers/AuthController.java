@@ -23,7 +23,6 @@ public class AuthController {
   private final AuthService authService;
   private final PasswordResetService passwordResetService;
 
-  // ─── REGISTER SIMPLE ──────────────────────────────────────────────────────
   @PostMapping("/register")
   public ResponseEntity<?> register(@RequestBody RegisterDTO dto) {
     try {
@@ -34,7 +33,6 @@ public class AuthController {
     }
   }
 
-  // ─── REGISTER + PAIEMENT ──────────────────────────────────────────────────
   @PostMapping("/register-with-payment")
   public ResponseEntity<?> registerWithPayment(@RequestBody RegisterWithPaymentDTO dto) {
     try {
@@ -47,7 +45,7 @@ public class AuthController {
     }
   }
 
-  // ─── LOGIN ────────────────────────────────────────────────────────────────
+
   @PostMapping("/login")
   public ResponseEntity<?> login(@RequestBody LoginDTO dto) {
     try {
@@ -58,7 +56,7 @@ public class AuthController {
     }
   }
 
-  // ─── FORGOT PASSWORD ──────────────────────────────────────────────────────
+
   @PostMapping("/forgot-password")
   public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordDTO dto) {
     try {
@@ -69,7 +67,7 @@ public class AuthController {
     }
   }
 
-  // ─── VERIFY CODE ──────────────────────────────────────────────────────────
+
   @PostMapping("/verify-code")
   public ResponseEntity<?> verifyCode(@RequestBody VerifyCodeDTO dto) {
     try {
@@ -81,7 +79,7 @@ public class AuthController {
     }
   }
 
-  // ─── RESET PASSWORD ───────────────────────────────────────────────────────
+
   @PostMapping("/reset-password")
   public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordDTO dto) {
     try {

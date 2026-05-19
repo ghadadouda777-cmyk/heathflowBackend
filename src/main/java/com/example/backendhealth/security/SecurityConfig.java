@@ -43,7 +43,8 @@ public class SecurityConfig {
             .requestMatchers("/api/patients/**").permitAll()
             .requestMatchers("/api/plans-exercices/**").permitAll()
             .requestMatchers("/api/chat/**").permitAll()
-            .requestMatchers("/ws/**").permitAll()
+                  .requestMatchers("/api/nutrition/**").permitAll()
+                  .requestMatchers("/ws/**").permitAll()
 
             .anyRequest().permitAll()
           )

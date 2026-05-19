@@ -21,25 +21,20 @@ public class ChatConversationController {
     private final ChatConversationService chatService;
     private final SimpMessagingTemplate messagingTemplate;
 
-    /** GET /api/chat/nutritionist/{userId} — conversations of type PATIENT_NUTRITIONIST */
     @GetMapping("/nutritionist/{userId}")
     public ResponseEntity<List<ChatConversationDTO>> getByNutritionist(@PathVariable String userId) {
         return ResponseEntity.ok(chatService.getByParticipantAndType(userId, "PATIENT_NUTRITIONIST"));
     }
-
-    /** GET /api/chat/coach/{userId} — conversations of type CLIENT_COACH */
     @GetMapping("/coach/{userId}")
     public ResponseEntity<List<ChatConversationDTO>> getByCoach(@PathVariable String userId) {
         return ResponseEntity.ok(chatService.getByParticipantAndType(userId, "CLIENT_COACH"));
     }
 
-    /** GET /api/chat/patient/{userId} — all conversations where userId is participant */
     @GetMapping("/patient/{userId}")
     public ResponseEntity<List<ChatConversationDTO>> getByPatient(@PathVariable String userId) {
         return ResponseEntity.ok(chatService.getByParticipant(userId));
     }
 
-    /** GET /api/chat/patient/{userId}/type/{type} — conversations filtered by type */
     @GetMapping("/patient/{userId}/type/{type}")
     public ResponseEntity<List<ChatConversationDTO>> getByPatientAndType(
             @PathVariable String userId,
@@ -53,7 +48,6 @@ public class ChatConversationController {
         return ResponseEntity.ok(chatService.getMessages(conversationId));
     }
 
-    /** POST /api/chat — create or get conversation */
     @PostMapping
     public ResponseEntity<ChatConversationDTO> createOrGet(@RequestBody Map<String, String> body) {
         String p1   = body.get("participant1Id");
@@ -65,8 +59,6 @@ public class ChatConversationController {
         return ResponseEntity.status(HttpStatus.OK)
                 .body(chatService.getOrCreate(p1, p2, type));
     }
-
-    /** PATCH /api/chat/{conversationId}/read/{userId} — mark messages as read */
     @PatchMapping("/{conversationId}/read/{userId}")
     public ResponseEntity<Void> markAsRead(
             @PathVariable Long conversationId,
@@ -75,15 +67,11 @@ public class ChatConversationController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * POST /api/chat/message — save a message AND push to receiver via WebSocket.
-     * Used by the frontend as the primary send path (HTTP saves + WS delivers).
-     */
+
     @PostMapping("/message")
     public ResponseEntity<ChatMessageDTO> saveMessage(@RequestBody ChatMessageDTO dto) {
         ChatMessageDTO saved = chatService.saveMessage(dto);
 
-        // Push real-time to the receiver's personal queue
         if (saved.getReceiverId() != null) {
             try {
                 messagingTemplate.convertAndSendToUser(
@@ -91,7 +79,7 @@ public class ChatConversationController {
                     "/queue/messages",
                     saved
                 );
-            } catch (Exception e) { /* non-fatal — receiver will get it via polling */ }
+            } catch (Exception e) { }
         }
 
         return ResponseEntity.ok(saved);

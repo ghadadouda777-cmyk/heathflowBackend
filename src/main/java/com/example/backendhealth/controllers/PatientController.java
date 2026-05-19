@@ -28,12 +28,7 @@ public class PatientController {
     private final NotificationService notificationService;
     private final PlanExerciceService planExerciceService;
 
-    /**
-     * GET /api/patients/{id}
-     * Returns patient (Bloomer) profile data by user ID.
-     * Tries the Bloomer table first (for age/height/weight/goal),
-     * then falls back to the base users table.
-     */
+
     @GetMapping("/{id}")
     public ResponseEntity<?> getPatientById(@PathVariable String id) {
         // Try Bloomer-specific data first
@@ -55,7 +50,7 @@ public class PatientController {
             return ResponseEntity.ok(result);
         }
 
-        // Fall back to generic user
+
         Optional<user> u = userRepository.findById(id);
         if (u.isPresent()) {
             user usr = u.get();

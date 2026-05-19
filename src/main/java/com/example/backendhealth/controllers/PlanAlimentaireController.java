@@ -29,7 +29,6 @@ public class PlanAlimentaireController {
         return ResponseEntity.ok(planAlimentaireService.getPlanById(id));
     }
 
-    // ← yraja3 404 ila mafamach plan lel consultation
     @GetMapping("/consultation/{consultationId}")
     public ResponseEntity<PlanAlimentaireDTO> getByConsultation(@PathVariable Long consultationId) {
         return planAlimentaireService.getPlanByConsultationId(consultationId)

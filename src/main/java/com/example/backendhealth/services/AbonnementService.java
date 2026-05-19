@@ -32,7 +32,6 @@ public class AbonnementService {
     public AbonnementDTO.PaymentResponse traiterPaiement(
             AbonnementDTO.PaymentRequest request, String email) {
 
-        // ✅ FIX 1: Validate typeAbonnement FIRST with a clear error message
         if (request.getTypeAbonnement() == null || request.getTypeAbonnement().trim().isEmpty()) {
             throw new RuntimeException("Type d'abonnement requis !");
         }
@@ -50,11 +49,8 @@ public class AbonnementService {
                             "'. Valeurs acceptées : " + accepted
             );
         }
+   validerCarte(request);
 
-        // ✅ FIX 3: Validate card details AFTER validating enum (avoids NPE cascade)
-        validerCarte(request);
-
-        // ✅ FIX 4: Check authentication is not null before using it
         if (email == null || email.trim().isEmpty()) {
             throw new RuntimeException("Utilisateur non authentifié. Veuillez vous reconnecter.");
         }
@@ -79,6 +75,10 @@ public class AbonnementService {
 
         abonnementRepository.save(abonnement);
 
+        if ("BLOOMER".equals(currentUser.getRole())) {
+            currentUser.setActive(true);
+            userRepository.save(currentUser);
+        }
         emailService.sendSubscriptionConfirmation(currentUser.getEmail(), type.name());
 
         AbonnementDTO.PaymentResponse response = new AbonnementDTO.PaymentResponse();

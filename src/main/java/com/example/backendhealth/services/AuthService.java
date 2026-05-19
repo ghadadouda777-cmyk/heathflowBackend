@@ -57,10 +57,6 @@ public class AuthService {
 
     user newUser;
 
-    // ✅ FIX : On NE fait plus userRepository.save(newUser) séparément.
-    // Avec JOINED inheritance, sauvegarder Nutritionist/Bloomer insère
-    // automatiquement dans "users" ET dans la table fille.
-
     if ("NUTRITIONIST".equals(dto.getRole())) {
       Nutritionist nutri = new Nutritionist();
       nutri.setNom(dto.getNom());
@@ -97,7 +93,7 @@ public class AuthService {
       bloomer.setTel(dto.getTel());
       bloomer.setPwd(passwordEncoder.encode(dto.getPwd()));
       bloomer.setRole("BLOOMER");
-      bloomer.setActive(true);
+      bloomer.setActive(false);
       bloomer.setAge(dto.getAge());
       bloomer.setHeight(dto.getHeight());
       bloomer.setWeight(dto.getWeight());
@@ -123,7 +119,6 @@ public class AuthService {
     return response;
   }
 
-  // ─── REGISTER + PAIEMENT EN UNE SEULE TRANSACTION ────────────────────────
   @Transactional
   public Map<String, String> registerWithPayment(RegisterDTO registerDTO,
                                                  AbonnementDTO.PaymentRequest paymentRequest) {
@@ -134,7 +129,6 @@ public class AuthService {
 
     user newUser;
 
-    // ✅ FIX : même logique, plus de double save
 
     if ("NUTRITIONIST".equals(registerDTO.getRole())) {
       Nutritionist nutri = new Nutritionist();
@@ -172,7 +166,7 @@ public class AuthService {
       bloomer.setTel(registerDTO.getTel());
       bloomer.setPwd(passwordEncoder.encode(registerDTO.getPwd()));
       bloomer.setRole("BLOOMER");
-      bloomer.setActive(true);
+      bloomer.setActive(false);
       bloomer.setAge(registerDTO.getAge());
       bloomer.setHeight(registerDTO.getHeight());
       bloomer.setWeight(registerDTO.getWeight());
@@ -182,7 +176,7 @@ public class AuthService {
       newUser = bloomer;
     }
 
-    // Créer l'abonnement
+
     Abonnement.TypeAbonnement type =
             Abonnement.TypeAbonnement.valueOf(paymentRequest.getTypeAbonnement());
 
@@ -210,7 +204,7 @@ public class AuthService {
     return response;
   }
 
-  // ─── LOGIN ────────────────────────────────────────────────────────────────
+
   public Map<String, String> login(LoginDTO dto) {
     user u = userRepository.findByEmail(dto.getEmail())
             .orElseThrow(() -> new RuntimeException("Email introuvable !"));
@@ -218,7 +212,7 @@ public class AuthService {
     if (!passwordEncoder.matches(dto.getPwd(), u.getPwd())) {
       throw new RuntimeException("Mot de passe incorrect !");
     }
-    if (!u.isActive()) {
+    if (!u.isActive() && !"BLOOMER".equals(u.getRole())) {
       throw new RuntimeException("Compte désactivé !");
     }
 
@@ -233,6 +227,7 @@ public class AuthService {
     response.put("email", u.getEmail());
     response.put("id", String.valueOf(u.getId()));
     response.put("message", "Connexion réussie !");
+    response.put("isActive", String.valueOf(u.isActive()));
     return response;
   }
 }

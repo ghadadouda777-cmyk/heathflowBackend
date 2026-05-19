@@ -23,25 +23,23 @@ public class RendezVousController {
         this.rdvService = rdvService;
     }
 
-    // ── GET ALL NUTRITIONNISTES ────────────────────────────────────
+
     @GetMapping("/nutritionnistes")
     public ResponseEntity<List<Nutritionist>> getAllNutritionnistes() {
         return ResponseEntity.ok(rdvService.rechercherNutritionnisteParNom(""));
     }
 
-    // ── GET ALL COACHS ─────────────────────────────────────────────
+
     @GetMapping("/coachs")
     public ResponseEntity<List<Coach>> getAllCoachs() {
         return ResponseEntity.ok(rdvService.getAllCoaches());
     }
 
-    // ── Patient cherche nutritionniste par nom ─────────────────────
     @GetMapping("/nutritionnistes/search")
     public ResponseEntity<List<Nutritionist>> searchNutritionniste(@RequestParam String nom) {
         return ResponseEntity.ok(rdvService.rechercherNutritionnisteParNom(nom));
     }
 
-    // ── Patient cherche coach par nom ──────────────────────────────
     @GetMapping("/coachs/search")
     public ResponseEntity<List<Coach>> searchCoach(@RequestParam String nom) {
         return ResponseEntity.ok(rdvService.rechercherCoachParNom(nom));
